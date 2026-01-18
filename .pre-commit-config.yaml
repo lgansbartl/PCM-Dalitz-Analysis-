@@ -14,3 +14,14 @@ repos:
     rev: 2.0.2
     hooks:
       - id: cpplint
+  - repo: local
+    hooks:
+      - id: clang-tidy
+        name: clang-tidy
+        entry: clang-tidy
+        language: system
+        types: [c, c++]
+        files: \.(c|cc|cpp|cxx|h|hpp)$
+        args:
+          - -p=./build/
+        verbose: true

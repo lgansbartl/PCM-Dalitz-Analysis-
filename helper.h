@@ -277,10 +277,10 @@ static Double_t CrystalBallLow(Double_t x, Double_t alpha, Double_t n,
   return a / std::pow(b - t, n);
 }
 
-static Double_t CBExpoModel(Double_t* xx, Double_t* par)
+static Double_t CBExpoModel(const Double_t* var, const Double_t* par)
 {
-  const Double_t x = xx[0];
-  return par[0] * CrystalBallLow(x, par[1], par[2], par[3], par[4]) + std::exp(par[5] + par[6] * x);
+  const Double_t var0 = var[0];
+  return (par[0] * CrystalBallLow(var0, par[1], par[2], par[3], par[4])) + std::exp(par[5] + (par[6] * var0));
 }
 
 static TF1* FitPi0Shape_Save(TH1* hSig, double fitMin, double fitMax)

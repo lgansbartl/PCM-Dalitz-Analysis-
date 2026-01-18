@@ -202,7 +202,7 @@ void plotting()
       canvas->SaveAs(Form("Plots_%s/h_ratio_same_mix_fit%f-%f.png", vec_readfile_name[NVec].data(), vec_pt_min[i], vec_pt_min[i + 1]));
 
       // 1.4 Drawing Scaled mixed Histo
-      TH1D* h_mix_scaled = (TH1D*)vec_vecptranges_mix[NVec][i]->Clone(Form("h_mix_scaled_%i_%i", NVec, i));
+      TH1D* h_mix_scaled = dynamic_cast<TH1D*>(vec_vecptranges_mix[NVec][i]->Clone(Form("h_mix_scaled_%i_%i", NVec, i)));
       SetHistoStandardSettings1D(h_mix_scaled);
       // h_mix_scaled->Scale(scaling_factor);         //sclaing factor
       h_mix_scaled->Multiply(pol2.get()); // scaling function
