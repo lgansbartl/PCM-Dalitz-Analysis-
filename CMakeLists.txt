@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(flowanalysis_combined)
+project(plotting)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -13,7 +13,7 @@ find_package(ROOT REQUIRED COMPONENTS Core Hist Tree Graf Gpad MathCore)
 
 # Add executable
 add_executable(plotting
-    plotting.cpp
+  plotting.cpp
 )
 
 # Optional: warnings and debug symbols

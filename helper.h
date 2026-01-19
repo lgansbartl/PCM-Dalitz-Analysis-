@@ -215,7 +215,7 @@ void SortingVectorN3(int NSparse, TH1D* histo, std::vector<TH1D*>& vec1, std::ve
 // Making Ratio
 TH1D* MakingRatio(TH1* histo, TH1* histo_divide, const char* name)
 {
-  TH1D* hist_ratio = (TH1D*)histo->Clone(name);
+  TH1D* hist_ratio = reinterpret_cast<TH1D*>(histo->Clone(name));
   hist_ratio->Divide(hist_ratio, histo_divide, 1., 1., "B"); // B: berücksigtigt korrelationen
 
   // TH1D *hist_ratio = (TH1D*)histo_clo->Clone(name);
