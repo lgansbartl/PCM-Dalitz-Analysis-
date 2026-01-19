@@ -1,6 +1,10 @@
+.cache/
 .vscode/
 Data/
 Plots*/
+build/
 *.txt
 *.json
 *.DS_Store
+
+!CMakeLists.txt
