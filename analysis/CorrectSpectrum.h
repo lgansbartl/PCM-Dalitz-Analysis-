@@ -4,13 +4,26 @@
 #include "helperPlotting.h"
 #include <RtypesCore.h>
 
-void correctingSpectra(const std::string& filenameRaws, const std::string& filenameEffi, const char* filenameCorrected = "corrFile.root", bool isMC = false){
+void correctingSpectra(const std::string& filenameRaws, 
+                        const std::string& filenameEffi, 
+                        const std::string filenameCorrected = "corrFile.root", 
+                        const std::string filenameSavingDirectory = "/Users/lauragans-bartl/master/MyAnalysis/EtaDalitzAnalysis/Files/",
+                        bool isMC = false){
 
     ////*****GETTING THE RAW YIELDS FROM EXTRACTION****/////
-    TFile* fileFromRaws = safelyOpenRootfile(filenameRaws); 
-    std::unique_ptr<TH1D> hRawpT(fileFromRaws->Get<TH1D>("hRawpT"));
+    std::string filePath = filenameSavingDirectory + filenameRaws;
+    TFile* fileFromRaws = safelyOpenRootfile(filePath); 
+    std::unique_ptr<TH1D> hRawpT(fileFromRaws->Get<TH1D>("hRawpT"));   
+
+
+    // auto hRawpT = std::unique_ptr<TH1D>(
+    // static_cast<TH1D*>(hRawFromFile->Clone(("hRawpT" + tag).c_str())));
+    hRawpT->SetDirectory(nullptr);
+
     std::unique_ptr<TH1D> hNCollision(fileFromRaws->Get<TH1D>("hNCollision"));
+    hNCollision->SetDirectory(nullptr); 
     double_t nCollisions = hNCollision->GetBinContent(12);
+
 
 
     std::unique_ptr<TH1D> hTrueRawpT;
@@ -32,25 +45,30 @@ void correctingSpectra(const std::string& filenameRaws, const std::string& filen
     }
 
     ////*****GETTING THE EFFIS****/////
-    TFile* fileFromEffi = safelyOpenRootfile(filenameEffi); 
+    std::string filePathEffi = filenameSavingDirectory + filenameEffi;
+    TFile* fileFromEffi = safelyOpenRootfile(filePathEffi); 
     std::unique_ptr<TH1D> hRecEffi(fileFromEffi->Get<TH1D>("hRecEffi"));
     std::unique_ptr<TH1D> hTrueEffi(fileFromEffi->Get<TH1D>("hTrueEffi"));
     std::unique_ptr<TH1D> hRecEffiDalitz(fileFromEffi->Get<TH1D>("hRecEffiDalitz"));
     std::unique_ptr<TH1D> hTrueEffiDalitz(fileFromEffi->Get<TH1D>("hTrueEffiDalitz"));
 
     ////*****CORRECTING RAW SPECTRA****/////
-    std::unique_ptr<TFile> corrFile = std::unique_ptr<TFile>(TFile::Open(filenameCorrected, "RECREATE"));
+    std::string fileSaving = filenameSavingDirectory + filenameCorrected;
+    std::unique_ptr<TFile> corrFile = std::unique_ptr<TFile>(TFile::Open(fileSaving.c_str(), "RECREATE"));
 
-    auto *hRecCorr = (TH1D*) hRawpT->Clone("hRecCorr");
-    hRecCorr->Divide(hRecCorr, hRecEffi.get(), 1, 1, ""); // "B"??
-    setHistoStandardSettings1D(hRecCorr);
+    auto* hRecCorr = static_cast<TH1D*>(hRawpT->Clone("hRecCorr" ));
+    hRecCorr->SetDirectory(nullptr); // optional but often good practice
+    hRecCorr->Sumw2();  
+    hRecCorr->Divide(hRecEffi.get()); // "B"??
     normalizeSepc(hRecCorr, nCollisions);
-    hRecCorr->Write();
+    setHistoStandardSettings1D(hRecCorr);
+    corrFile->cd();
+    hRecCorr->Write(hRecCorr->GetName(), TObject::kOverwrite);
 
     if(isMC){
         auto *hTrueCorr = (TH1D*) hTrueRawpT->Clone("hTrueCorr");
         hTrueCorr->Divide(hTrueCorr, hTrueEffi.get(), 1, 1, ""); 
-        setHistoStandardSettings1D(hTrueCorr);
+        setHistoStandardSettings1D(hTrueCorr, nCollisions);
         hTrueCorr->Write();
         
         auto *hTrueCorrNorm = (TH1D*) hTrueCorr->Clone("hTrueCorrNorm");
@@ -69,8 +87,4 @@ void correctingSpectra(const std::string& filenameRaws, const std::string& filen
         normalizeSepc(hTrueCorrDalitz, nCollisions);
         hTrueCorrDalitz->Write();
     }
-
-
-    //TO DOO::
-    // Normierungen noch einbauen!!
 }

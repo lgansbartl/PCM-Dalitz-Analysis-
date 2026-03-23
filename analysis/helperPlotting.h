@@ -28,6 +28,10 @@ nicht lursiv, _T, B!
 #include <iostream>
 #include "stdarg.h"
 #include "TMath.h"
+#include "TGraph.h"
+#include "stdarg.h"
+#include <algorithm>
+
 
 // Canvas
 #include <TCanvas.h>
@@ -138,6 +142,38 @@ void setHistoStandardSettings1D(TH1* histo, double xOffset = 1.2, double yOffset
   histo->SetLineWidth(3);
   histo->SetLineColor(kBlack);
   histo->SetMarkerColor(kBlack);
+}
+
+void setGraphStandardSettings1D(TGraph* graph, double xOffset = 1.2, double yOffset = 1.1)
+{
+  // Title
+  graph->SetTitle("");
+
+  graph->GetXaxis()->SetTitleOffset(static_cast<float>(xOffset));
+  graph->GetYaxis()->SetTitleOffset(static_cast<float>(yOffset));
+  // histo->GetXaxis()->SetTitleSize(35);      //achsen beschriftung
+  // histo->GetYaxis()->SetTitleSize(35);
+  // histo->GetYaxis()->SetTitleFont(43);
+  // histo->GetXaxis()->SetTitleFont(43);
+  graph->GetXaxis()->SetTitleSize(25);
+  graph->GetYaxis()->SetTitleSize(25);
+  graph->GetXaxis()->SetTitleFont(63);
+  graph->GetYaxis()->SetTitleFont(63);
+
+  graph->GetXaxis()->SetMaxDigits(3);
+
+  // Label
+  graph->GetXaxis()->SetLabelSize(23); // label = zahlen an der achse
+  graph->GetYaxis()->SetLabelSize(23);
+  graph->GetXaxis()->SetLabelFont(43); // evtl 42, aber 43 ist okay
+  graph->GetYaxis()->SetLabelFont(43);
+
+  // Marker
+  graph->SetMarkerStyle(20); // zeichen, das den Punkt anzeigt. 20 ist kreis, gibt auch rechteck usw vgl. internet
+  graph->SetMarkerSize(1);   // By default auf 1, kann beliebig verändert werden, also auch auf 1.25 usw
+  graph->SetLineWidth(3);
+  graph->SetLineColor(kBlack);
+  graph->SetMarkerColor(kBlack);
 }
 
 void setHistoStandardSettings2D(TH2* histo, double xOffset = 1.2, double yOffset = 1.5, double zOffset = 1.3)
@@ -328,6 +364,42 @@ static TF1* fitPi0ShapeSave(TH1* hSig, double fitMin, double fitMax)
 
   return fcl;
 }
+static TF1* fitEtaShapeSave(TH1* hSig, double fitMin, double fitMax)
+{ // funktioniert gut
+  if (hSig == nullptr|| hSig->GetNbinsX() == 0) {
+    return nullptr;
+  }
+
+  TF1 fitFunc(Form("fit_%s_tmp", hSig->GetName()), cbExpoModel, fitMin, fitMax, 7);
+
+  const double ymax = std::max(1.0, hSig->GetMaximum());
+  fitFunc.SetParameters(
+    ymax,                                // par[0] Amplitude CB
+    1.5,                                 // par[1] alpha
+    3.0,                                 // par[2] n
+    0.015,                               // par[3] sigma
+    0.547,                               // par[4] mean (pi0)
+    std::log(std::max(1.0, ymax / 2.0)), // par[5] log-Amplitude Untergrund
+    -8.0                                 // par[6] slope exp.
+  );
+
+  fitFunc.SetParLimits(1, 0.5, 6.0);
+  fitFunc.SetParLimits(2, 1.1, 10.0);
+  fitFunc.SetParLimits(3, 0.005, 0.040);
+  fitFunc.SetParLimits(4, 0.5, 0.6);
+  fitFunc.SetParLimits(6, -100.0, -1e-3);
+  fitFunc.SetNpx(10000);
+
+  hSig->Fit(&fitFunc, "RQ0M");
+
+  TF1* fcl = (TF1*)fitFunc.Clone(Form("fit_%s", hSig->GetName()));
+  if (fcl != nullptr) {
+    fcl->SetRange(fitMin, fitMax);
+    hSig->GetListOfFunctions()->Add(fcl);
+  }
+
+  return fcl;
+}
 
 void drawingHeaderStandardLines(double_t xVar, double_t y1Var, const char* dataset, const char* cllisionAndbField, const char* particleDecay)
 {
@@ -370,26 +442,29 @@ void drawLine(double x1l, double y1l, double x2l, double y2l, short width, short
 
 void normalizeSepc(TH1* histo, double_t nCollisions = 1){
   histo->Scale(1, "width");   //Binbreite
-  histo->Scale(1/(2* TMath::Pi()));      //Phi
-  histo->Scale(1/nCollisions);            //Kollisionen
-  histo->Scale(1/0.007);              //BR            
-  histo->Scale(1/1.6);              //eta: |eta| < 0.8
-  histo->GetYaxis()->SetTitle("#frac{1}{N_{ev}} #frac{1}{2#pi #it{p}_{T}} #frac{d^{2} #it{N}}{d#it{p}_{T}dy} #frac{1}{BR_{Dalitz}}((GeV/#it{c})^{-2})");
+  histo->Scale(1./(2* TMath::Pi()));      //Phi
+  histo->Scale(1./nCollisions);            //Kollisionen
+  histo->Scale(1./0.007);              //BR: 0.007 for Dalitz, 1 for enhanced MC       
+  histo->Scale(1./1.6);              //eta: |eta| < 0.8
+  double lumi = 52.8e-3; // x-section in b
+  lumi*=1e12; // in pb
+  histo->Scale(lumi);          //to translate into cross section     
+  histo->GetYaxis()->SetTitle("#frac{1}{#it{L}_{int}} #frac{1}{2#pi #it{p}_{T}} #frac{d^{2} #it{N}}{d#it{p}_{T}dy} #frac{1}{BR}(pb(GeV/c)^{-1})");
 
   //Scaling pT
   std::vector<Int_t> vecBins;
   for(int iBin = 1; iBin <= histo->GetNbinsX(); iBin++){
-      double binCenter = histo->GetBinCenter(iBin); 
-      if(binCenter == 0) continue;
+    double binCenter = histo->GetBinCenter(iBin); 
+    if(binCenter == 0) continue;
 
-      double xLow = histo->GetXaxis()->GetBinLowEdge(iBin);
-      vecBins.push_back(static_cast<Int_t>(xLow));
+    double xLow = histo->GetXaxis()->GetBinLowEdge(iBin);
+    vecBins.push_back(static_cast<Int_t>(xLow));
 
-      double binContent = histo->GetBinContent(iBin);
-      double binError = histo->GetBinError(iBin);
+    double binContent = histo->GetBinContent(iBin);
+    double binError = histo->GetBinError(iBin);
 
-      histo->SetBinContent(iBin, binContent / binCenter);
-      histo->SetBinError(iBin, binError / binCenter);
+    histo->SetBinContent(iBin, binContent / binCenter);
+    histo->SetBinError(iBin, binError / binCenter);
   }
 }
 
